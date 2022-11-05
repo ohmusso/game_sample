@@ -3,6 +3,7 @@
 // BSD-style license that can be found in the LICENSE file.
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 
 /// A palette of colors to be used in the game.
 ///
@@ -35,3 +36,5 @@ class Palette {
   Color get backgroundSettings => const Color(0xffbfc8e3);
   Color get trueWhite => const Color(0xffffffff);
 }
+
+final paletteProvider = riverpod.Provider((_) =>  Palette()); 

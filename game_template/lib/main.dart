@@ -11,6 +11,7 @@ import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart' as riverpod;
 import 'package:go_router/go_router.dart';
 import 'package:logging/logging.dart';
 import 'package:provider/provider.dart';
@@ -111,73 +112,78 @@ void guardedMain() {
   // }
 
   runApp(
-    MyApp(
-      settingsPersistence: LocalStorageSettingsPersistence(),
-      playerProgressPersistence: LocalStoragePlayerProgressPersistence(),
-      inAppPurchaseController: inAppPurchaseController,
-      adsController: adsController,
-      gamesServicesController: gamesServicesController,
-    ),
+    riverpod.ProviderScope(
+      child: MyApp(
+        settingsPersistence: LocalStorageSettingsPersistence(),
+        playerProgressPersistence: LocalStoragePlayerProgressPersistence(),
+        inAppPurchaseController: inAppPurchaseController,
+        adsController: adsController,
+        gamesServicesController: gamesServicesController,
+      ),
+    )
   );
 }
 
 Logger _log = Logger('main.dart');
 
-class MyApp extends StatelessWidget {
-  static final _router = GoRouter(
+final _routerProvider = riverpod.Provider(
+  (ref) => GoRouter(
     routes: [
       GoRoute(
-          path: '/',
-          builder: (context, state) =>
-              const MainMenuScreen(key: Key('main menu')),
-          routes: [
-            GoRoute(
-                path: 'play',
-                pageBuilder: (context, state) => buildMyTransition<void>(
-                      child: const LevelSelectionScreen(
-                          key: Key('level selection')),
-                      color: context.watch<Palette>().backgroundLevelSelection,
-                    ),
-                routes: [
-                  GoRoute(
-                    path: 'session/:level',
-                    pageBuilder: (context, state) {
-                      final levelNumber = int.parse(state.params['level']!);
-                      final level = gameLevels
-                          .singleWhere((e) => e.number == levelNumber);
-                      return buildMyTransition<void>(
-                        child: PlaySessionScreen(
-                          level,
-                          key: const Key('play session'),
-                        ),
-                        color: context.watch<Palette>().backgroundPlaySession,
-                      );
-                    },
+        path: '/',
+        builder: (context, state) =>
+            const MainMenuScreen(key: Key('main menu')),
+        routes: [
+          GoRoute(
+              path: 'play',
+              pageBuilder: (context, state) => buildMyTransition<void>(
+                    child: const LevelSelectionScreen(
+                        key: Key('level selection')),
+                    color: ref.watch(paletteProvider).backgroundLevelSelection,
                   ),
-                  GoRoute(
-                    path: 'won',
-                    pageBuilder: (context, state) {
-                      final map = state.extra! as Map<String, dynamic>;
-                      final score = map['score'] as Score;
+              routes: [
+                GoRoute(
+                  path: 'session/:level',
+                  pageBuilder: (context, state) {
+                    final levelNumber = int.parse(state.params['level']!);
+                    final level = gameLevels
+                        .singleWhere((e) => e.number == levelNumber);
+                    return buildMyTransition<void>(
+                      child: PlaySessionScreen(
+                        level,
+                        key: const Key('play session'),
+                      ),
+                      color: ref.watch(paletteProvider).backgroundPlaySession,
+                    );
+                  },
+                ),
+                GoRoute(
+                  path: 'won',
+                  pageBuilder: (context, state) {
+                    final map = state.extra! as Map<String, dynamic>;
+                    final score = map['score'] as Score;
 
-                      return buildMyTransition<void>(
-                        child: WinGameScreen(
-                          score: score,
-                          key: const Key('win game'),
-                        ),
-                        color: context.watch<Palette>().backgroundPlaySession,
-                      );
-                    },
-                  )
-                ]),
-            GoRoute(
-              path: 'settings',
-              builder: (context, state) =>
-                  const SettingsScreen(key: Key('settings')),
-            ),
-          ]),
+                    return buildMyTransition<void>(
+                      child: WinGameScreen(
+                        score: score,
+                        key: const Key('win game'),
+                      ),
+                      color: ref.watch(paletteProvider).backgroundPlaySession,
+                    );
+                  },
+                )
+              ]),
+          GoRoute(
+            path: 'settings',
+            builder: (context, state) =>
+                const SettingsScreen(key: Key('settings')),
+          ),
+        ]),
     ],
-  );
+  ),
+);
+
+class MyApp extends StatelessWidget {
 
   final PlayerProgressPersistence playerProgressPersistence;
 
@@ -240,8 +246,9 @@ class MyApp extends StatelessWidget {
             create: (context) => Palette(),
           ),
         ],
-        child: Builder(builder: (context) {
-          final palette = context.watch<Palette>();
+        child: riverpod.Consumer(builder: (context, ref, _) {
+          final palette = ref.watch(paletteProvider);
+          final router = ref.watch(_routerProvider);
 
           return MaterialApp.router(
             title: 'Flutter Demo',
@@ -256,12 +263,12 @@ class MyApp extends StatelessWidget {
                 ),
               ),
             ),
-            routeInformationProvider: _router.routeInformationProvider,
-            routeInformationParser: _router.routeInformationParser,
-            routerDelegate: _router.routerDelegate,
+            routeInformationProvider: router.routeInformationProvider,
+            routeInformationParser: router.routeInformationParser,
+            routerDelegate: router.routerDelegate,
             scaffoldMessengerKey: scaffoldMessengerKey,
           );
-        }),
+        },) 
       ),
     );
   }
